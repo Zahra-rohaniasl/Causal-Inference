@@ -1,23 +1,3 @@
----
-title: "BSMM-lab-8"
-subtitle: "BSMM 8740 Fall 2023"
-author: "Add your name here"
-date: "Add the date here"
-format: html
-editor: visual
-self-contained: true
----
-
-::: callout-note
-## REMINDER:
-
-Be sure to edit this document (see above) to include your [**name**]{.underline} (and the [**date**]{.underline})
-
-Before you wrap up the assignment, make sure all documents are updated on your GitHub repo (i.e. save, stage, commit and **push**).
-
-Remember -- you do [**not**]{.underline} have to turn in an \*.html file. I will be pulling your work directly from your repository on the [course github site](https://github.com/BSMM-8740-Fall-2023).
-:::
-
 ## Introduction
 
 In today's lab, you'll practice working with DAGs and building a causal workflow..
@@ -150,17 +130,59 @@ dag_flows |>
   ggdag::theme_dag()
 ```
 
-::: {.callout-note appearance="simple" icon="false"}
-## YOUR ANSWER:
+Solution
 
--   DAG_1
-    -   open paths:
--   DAG_2
-    -   open paths:
--   DAG_3
-    -   open paths:
--   DAG_4
-    -   open paths:
+
+SOLUTION:
+DAG_1
+# open paths DAG 1: "D -> A -> Y"
+```{r}
+dag_1 %>% dagitty::paths()
+```
+
+$paths
+[1] "D -> A -> Y"
+
+$open
+[1] TRUE
+
+
+DAG_2
+# open paths DAG 2: "D -> E -> Y"
+```{r}
+dag_2 %>% dagitty::paths()
+```
+
+$paths
+[1] "D -> E -> Y"                "D <- A -> B <- F -> E -> Y"
+
+$open
+[1]  TRUE FALSE
+
+
+DAG_3
+# open paths DAG 3: "D -> Y" and "D <- B -> Y"
+```{r}
+dag_3 %>% dagitty::paths()
+```
+
+$paths
+[1] "D -> A <- B -> Y" "D -> Y"           "D <- B -> Y"     
+
+$open
+[1] FALSE  TRUE  TRUE
+
+
+DAG_4
+# open paths DAG 4: "D -> Y" and "D <- B <- C -> Y"
+```{r}
+dag_4 %>% dagitty::paths()
+```
+$paths
+[1] "D -> Y"                "D <- A -> B <- C -> Y" "D <- B <- C -> Y"     
+
+$open
+[1]  TRUE FALSE  TRUE
 :::
 
 ## Exercise 2: Building a DAG
@@ -175,35 +197,68 @@ To confirm your understanding of the business, perhaps identify missing data, an
 
 What data might be missing from dataset provided by the company?
 
-::: {.callout-note appearance="simple" icon="false"}
-## YOUR ANSWER:
+
 
 Data missing if any:
 
 Code to display the DAG
 
 ```{r}
-#| eval: false
 set.seed(8740)
 ggdag::dagify(
-  demand ~ ?
-  , price ~ ?
-  , c_price ~ ?
-  , wholesale ~ ?
-  , economy ~ ?  
+  demand ~ price + economy + c_price
+  , price ~ c_price + wholesale
+  , c_price ~ wholesale
+  , wholesale ~ economy
   , exposure = "price"
   , outcome = "demand"
   , labels = c(
-      demand = "demand",
       price = "price",
       c_price = "c_price",
       economy = "economy",
+      demand = "demand",
       wholesale = "wholesale"
     )
 ) %>%
   ggdag::ggdag(use_labels = "label", text = FALSE) +
   ggdag::theme_dag()
 ```
+
+The missing data: There is an open path: price -> c_price -> demand, and clearly our competitor’s price is a confounder of our price effect on demand - but it can be controlled for since we have the competitor price data.
+
+However, there is also an open path: price -> wholesale -> economy -> demand, and this needs to be closed if we are to accurately estimate our price effect on demand. We could close this path if we had data on the wholesale prices or on the ‘economy,’ as controlling for either would close the path, but the latter is unmeasured and even if there were some measure of the ‘economy,’ the wholesale prices would likely have less measurement error. So both those datasets are missing, but we should ask management for, or otherwise acquire, the wholesale price history.
+
+We might be able to do a bit better too, perhaps by reducing variance by including data on weather, traffic, holidays, etc.,
+
+```{r}
+set.seed(8740)
+ggdag::dagify(
+  demand ~ price + traffic + c_price + economy
+  , traffic ~ economy
+  , demand ~ weather
+  , demand ~ holidays
+  , price ~ c_price + wholesale
+  , c_price ~ wholesale
+  , wholesale ~ economy
+  , exposure = "price"
+  , outcome = "demand"
+  , labels = c(
+      price = "price",
+      c_price = "c_price",
+      economy = "economy",
+      demand = "demand",
+      wholesale = "wholesale",
+      traffic = "traffic",
+      weather = "weather",
+      holidays = "holidays"
+    )
+) %>%
+  ggdag::ggdag(use_labels = "label", text = FALSE) +
+  ggdag::theme_dag()
+
+```
+
+
 :::
 
 ## Exercise 3: Causal Modeling
@@ -556,26 +611,17 @@ So, we have a final estimate for our causal effect: on average, a person who qui
 -   Please enumerate the steps in the causal analysis workflow
 -   What do you think? Is this estimate reliable? Did we do a good job addressing the assumptions we need to make for a causal effect, particularly that there is no confounding? How might you criticize this model, and what would you do differently?
 
-::: {.callout-note appearance="simple" icon="false"}
+
 ## Your Answer
 
--   causal workflow steps:
+causal workflow steps:
+Specify a causal question
+Draw assumptions using a causal diagram
+Model assumptions
+Diagnose models
+Estimate the causal effect
+Conduct sensitivity analysis on the effect estimate
+critique of the results of the exercise:
+We have many confounders in this problem. What if we missed an important one?
 
--   your critique of the results of the exercise
-:::
-
-## Submission
-
-::: callout-warning
-Before you wrap up the assignment, make sure all documents are **saved**, **staged**, **committed**, and [**pushed**]{.underline} to your repository on the course github site.
-
-Remember -- you do **not** have to turn in an \*.html file. I will be pulling your work directly from your repository on the course website.
-:::
-
-## Grading
-
-Total points available: 30 points.
-
-| Component | Points |
-|-----------|--------|
-| Ex 1 - 3  | 30     |
+The one step of the workflow that we missed is to conduct a sensitivity analysis and so that should certainly be done before reporting the results of the exercise.
